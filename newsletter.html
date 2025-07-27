@@ -50,9 +50,80 @@
         .open .line-3 {
             transform: translateY(-9px) rotate(-45deg);
         }
+
+        /* --- KEYFRAMES FOR SHIMMER ANIMATION --- */
+        @keyframes shimmer {
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        /* --- LOADING OVERLAY --- */
+        #loadingOverlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(249, 249, 249, 0.85);
+            backdrop-filter: blur(5px);
+            z-index: 30000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            user-select: none;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-image-container {
+            position: relative;
+            width: 1000px;
+            height: 500px;
+            margin-bottom: 25px;
+            filter: drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white);
+            -webkit-mask-image: url('https://i.imghippo.com/files/ofc9438IXE.png');
+            mask-image: url('https://i.imghippo.com/files/ofc9438IXE.png');
+            -webkit-mask-size: contain;
+            mask-size: contain;
+            -webkit-mask-position: center;
+            mask-position: center;
+            -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+        }
+
+        .loading-image-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(110deg, transparent 40%, rgba(255, 255, 255, 0.4) 50%, transparent 60%);
+            transform: translateX(-100%);
+            animation: shimmer 2.5s infinite linear;
+        }
+        
+        .loading-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .loading-text {
+            font-size: 1.5em;
+            color: #3b82f6;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
+
+    <div id="loadingOverlay">
+        <div class="loading-image-container">
+            <img src="https://i.imghippo.com/files/ofc9438IXE.png" alt="Loading" class="loading-image">
+        </div>
+        <div class="loading-text">Loading Newsletter...</div>
+    </div>
 
     <div class="container mx-auto max-w-4xl px-4 py-10">
         
@@ -139,7 +210,7 @@
                 </a>
                 <a href="https://www.mybandstonight.com/band-reviews" target="_top" class="flex-1 flex flex-col items-center justify-center text-gray-500 hover:bg-blue-50 hover:text-blue-600 py-2 rounded-xl transition-all duration-300">
                     <svg class="w-6 h-6 mb-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                         <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
                     </svg>
                     <span class="text-xs font-medium text-center">Leave a Review</span>
                 </a>
@@ -175,62 +246,73 @@
     </div>
 
     <script>
-        // --- Newsletter Form Logic ---
-        const form = document.getElementById('subscribe-form');
-        const submitButton = document.getElementById('submit-button');
-        const formMessage = document.getElementById('form-message');
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbzvug7oVtFqXjFmHo6kOB7mYITW_nKAPhe-xDK4-ZJ1xNQIoEPG3q1Om2iRrK0CWCcqlg/exec'; // <-- MAKE SURE YOUR URL IS STILL HERE
-
-        form.addEventListener('submit', e => {
-            e.preventDefault();
-            submitButton.disabled = true;
-            submitButton.textContent = 'Checking...';
-            
-            fetch(scriptURL, { method: 'POST', body: new FormData(form)})
-                .then(response => response.json())
-                .then(data => {
-                    // Handle the response based on the 'result'
-                    if (data.result === 'success') {
-                        formMessage.textContent = data.message;
-                        formMessage.style.color = '#10B981'; // Green
-                        form.reset();
-                    } else if (data.result === 'duplicate') {
-                        formMessage.textContent = data.message;
-                        formMessage.style.color = '#F59E0B'; // Amber
-                    } else {
-                        // This handles errors thrown by the script
-                        throw new Error(data.error || 'An unknown error occurred.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error!', error.message);
-                    formMessage.textContent = 'Oops! Something went wrong.';
-                    formMessage.style.color = '#EF4444'; // Red
-                })
-                .finally(() => {
-                    submitButton.disabled = false;
-                    submitButton.textContent = 'Subscribe';
-                });
-        });
-
-        // --- Menu Bar Logic ---
-        const menuButton = document.getElementById('menu-button');
-        const contactMenu = document.getElementById('contact-menu');
-        const hamburgerIcon = document.getElementById('hamburger-icon');
-
-        menuButton.addEventListener('click', (event) => {
-            event.stopPropagation();
-            contactMenu.classList.toggle('hidden');
-            hamburgerIcon.classList.toggle('open');
-        });
-
-        document.addEventListener('click', (event) => {
-            if (!contactMenu.classList.contains('hidden')) {
-                if (!menuButton.contains(event.target)) {
-                    contactMenu.classList.add('hidden');
-                    hamburgerIcon.classList.remove('open');
-                }
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Loading Screen Logic ---
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                setTimeout(() => {
+                    loadingOverlay.style.opacity = '0';
+                    setTimeout(() => {
+                        loadingOverlay.style.display = 'none';
+                    }, 500); // Wait for fade-out transition (0.5s)
+                }, 1500); // Display for 1.5 seconds
             }
+
+            // --- Newsletter Form Logic ---
+            const form = document.getElementById('subscribe-form');
+            const submitButton = document.getElementById('submit-button');
+            const formMessage = document.getElementById('form-message');
+            const scriptURL = 'https://script.google.com/macros/s/AKfycbzvug7oVtFqXjFmHo6kOB7mYITW_nKAPhe-xDK4-ZJ1xNQIoEPG3q1Om2iRrK0CWCcqlg/exec'; // <-- MAKE SURE YOUR URL IS STILL HERE
+
+            form.addEventListener('submit', e => {
+                e.preventDefault();
+                submitButton.disabled = true;
+                submitButton.textContent = 'Checking...';
+                
+                fetch(scriptURL, { method: 'POST', body: new FormData(form)})
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.result === 'success') {
+                            formMessage.textContent = data.message;
+                            formMessage.style.color = '#10B981'; // Green
+                            form.reset();
+                        } else if (data.result === 'duplicate') {
+                            formMessage.textContent = data.message;
+                            formMessage.style.color = '#F59E0B'; // Amber
+                        } else {
+                            throw new Error(data.error || 'An unknown error occurred.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error!', error.message);
+                        formMessage.textContent = 'Oops! Something went wrong.';
+                        formMessage.style.color = '#EF4444'; // Red
+                    })
+                    .finally(() => {
+                        submitButton.disabled = false;
+                        submitButton.textContent = 'Subscribe';
+                    });
+            });
+
+            // --- Menu Bar Logic ---
+            const menuButton = document.getElementById('menu-button');
+            const contactMenu = document.getElementById('contact-menu');
+            const hamburgerIcon = document.getElementById('hamburger-icon');
+
+            menuButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                contactMenu.classList.toggle('hidden');
+                hamburgerIcon.classList.toggle('open');
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!contactMenu.classList.contains('hidden')) {
+                    if (!menuButton.contains(event.target)) {
+                        contactMenu.classList.add('hidden');
+                        hamburgerIcon.classList.remove('open');
+                    }
+                }
+            });
         });
     </script>
 
