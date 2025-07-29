@@ -1,320 +1,778 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Best Bets | Weekly Newsletter</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel | MyBandsTonight</title>
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+    body { font-family: 'Inter', sans-serif; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    .sidebar-link { transition: all 0.2s ease-in-out; cursor: pointer; }
+    .sidebar-link:hover, .sidebar-link.active { background-color: #eef2ff; color: #4f46e5; }
+    .sidebar-link.active { font-weight: 600; border-right: 3px solid #4f46e5; }
+    .admin-table th { background-color: #f8fafc; font-weight: 600; color: #475569; }
+    .admin-table tr:hover { background-color: #f1f5f9; }
+    #loadingOverlay { position: fixed; inset: 0; background: rgba(249,249,249,0.85); backdrop-filter: blur(5px); z-index: 30000; display: flex; justify-content: center; align-items: center; transition: opacity 0.5s ease; }
+    .btn-spinner { animation: spin 1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    #customAlert-container {
+        position: fixed; top: 0; left: 0; right: 0;
+        display: flex; align-items: flex-start; justify-content: center;
+        padding-top: 20px; z-index: 9999; pointer-events: none;
+    }
+    .custom-alert-box {
+        color: white; padding: 1rem 1.5rem; border-radius: 0.75rem;
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); font-weight: 500;
+        opacity: 0; animation: slideDownFadeIn 0.4s ease-out forwards;
+    }
+    .custom-alert-box.fade-out { animation: slideUpFadeOut 0.4s ease-in forwards; }
+    .alert-info { background: linear-gradient(135deg, #3b82f6, #6366f1); }
+    .alert-success { background: linear-gradient(135deg, #22c55e, #16a34a); }
+    .alert-error { background: linear-gradient(135deg, #ef4444, #dc2626); }
 
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            padding-bottom: 120px; /* Increased padding for more space */
-        }
-        @keyframes fadeInDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .fade-in-down { animation: fadeInDown 0.8s ease-out forwards; }
-        .fade-in-up { animation: fadeInUp 0.8s ease-out forwards; }
-        .delay-1 { animation-delay: 0.2s; }
-        .delay-2 { animation-delay: 0.4s; }
-        .delay-3 { animation-delay: 0.6s; }
-        .delay-4 { animation-delay: 0.8s; }
-        .feature-card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
-        .feature-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
-
-        /* Styles for the bottom menu hamburger-to-X animation */
-        .hamburger-line {
-            transition: all 0.3s ease-in-out;
-        }
-        .open .line-1 {
-            transform: translateY(9px) rotate(45deg);
-        }
-        .open .line-2 {
-            opacity: 0;
-            transform: scaleX(0);
-        }
-        .open .line-3 {
-            transform: translateY(-9px) rotate(-45deg);
-        }
-
-        /* --- KEYFRAMES FOR SHIMMER ANIMATION --- */
-        @keyframes shimmer {
-            100% {
-                transform: translateX(100%);
-            }
-        }
-
-        /* --- LOADING OVERLAY --- */
-        #loadingOverlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(249, 249, 249, 0.85);
-            backdrop-filter: blur(5px);
-            z-index: 30000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            user-select: none;
-            opacity: 1;
-            transition: opacity 0.5s ease;
-        }
-
-        .loading-image-container {
-            position: relative;
-            width: 1000px;
-            height: 500px;
-            margin-bottom: 25px;
-            filter: drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white);
-            -webkit-mask-image: url('https://i.imghippo.com/files/ofc9438IXE.png');
-            mask-image: url('https://i.imghippo.com/files/ofc9438IXE.png');
-            -webkit-mask-size: contain;
-            mask-size: contain;
-            -webkit-mask-position: center;
-            mask-position: center;
-            -webkit-mask-repeat: no-repeat;
-            mask-repeat: no-repeat;
-        }
-
-        .loading-image-container::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(110deg, transparent 40%, rgba(255, 255, 255, 0.4) 50%, transparent 60%);
-            transform: translateX(-100%);
-            animation: shimmer 2.5s infinite linear;
-        }
-        
-        .loading-image {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            display: block;
-        }
-
-        .loading-text {
-            font-size: 1.5em;
-            color: #3b82f6;
-            font-weight: bold;
-            letter-spacing: 2px;
-        }
-    </style>
+    .confirm-modal {
+        max-width: 400px; width: 100%;
+        background: white; border-radius: 0.75rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        text-align: center; padding: 2rem;
+        opacity: 0; animation: popIn 0.3s ease-out forwards;
+    }
+    @keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; }}
+    @keyframes slideDownFadeIn { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes slideUpFadeOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-30px); opacity: 0; } }
+</style>
 </head>
 <body class="bg-slate-50 text-slate-800">
 
-    <div id="loadingOverlay">
-        <div class="loading-image-container">
-            <img src="https://i.imghippo.com/files/ofc9438IXE.png" alt="Loading" class="loading-image">
-        </div>
-        <div class="loading-text">Loading Newsletter...</div>
-    </div>
+<div id="password-overlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"><div class="w-full max-w-md bg-white rounded-xl shadow-2xl p-8"><form id="password-form"><h2 class="text-2xl font-bold text-slate-800 text-center mb-2">Admin Access</h2><p class="text-slate-500 text-center mb-6">Please enter the password to continue.</p><div class="space-y-4"><input type="password" id="password-input" placeholder="Password" class="w-full px-4 py-3 bg-slate-100 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"><button type="submit" id="login-button" class="w-full py-3 px-5 bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold rounded-lg shadow-md hover:from-blue-600 hover:to-indigo-700">Login</button></div><p id="password-error" class="text-red-500 text-sm text-center mt-4 h-4"></p></form></div></div>
 
-    <div class="container mx-auto max-w-4xl px-4 py-10">
-        
-        <header class="text-center mb-12 fade-in-down">
-            <h1 class="text-4xl font-extrabold tracking-tight sm:text-5xl bg-gradient-to-r from-blue-500 via-indigo-600 to-violet-600 bg-clip-text text-transparent">
-                Best Bets
-            </h1>
-            <p class="mt-3 text-lg text-indigo-600 font-semibold">Your Weekly Guide to Live Music</p>
-            <p class="mt-6 max-w-2xl mx-auto text-base text-slate-600">
-                Join our newsletter to get a curated list of the best upcoming shows, emerging artists, and local events delivered to your inbox every week.
-            </p>
-            <form id="subscribe-form" class="mt-6 max-w-md mx-auto">
-                <div class="flex transition-shadow duration-300 focus-within:shadow-lg rounded-lg">
-                    <input type="email" name="email" placeholder="Enter your email" class="w-full px-4 py-3 bg-white border border-slate-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all" required>
-                    <button type="submit" id="submit-button" class="py-3 px-6 bg-indigo-600 text-white font-semibold rounded-r-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-all">
-                        Subscribe
+<div class="relative min-h-screen md:flex">
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/60 z-30 md:hidden hidden"></div>
+    <aside id="sidebar" class="w-64 bg-white border-r border-slate-200 flex-shrink-0 fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-300 ease-in-out md:relative md:translate-x-0">
+        <div class="p-6 text-center border-b"><h1 class="text-2xl font-extrabold text-indigo-600 tracking-wider">ADMIN</h1></div>
+        <nav class="mt-6">
+            <a id="nav-dashboard" class="sidebar-link flex items-center px-6 py-3 text-slate-700"><i class="fas fa-tachometer-alt w-6 mr-4"></i> Dashboard</a>
+            <a id="nav-reviews" class="sidebar-link flex items-center px-6 py-3 text-slate-700"><i class="fas fa-star w-6 mr-4"></i> Reviews</a>
+            <a id="nav-gigs" class="sidebar-link flex items-center px-6 py-3 text-slate-700"><i class="fas fa-guitar w-6 mr-4"></i> Gigs</a>
+            <a id="nav-venues" class="sidebar-link flex items-center px-6 py-3 text-slate-700"><i class="fas fa-map-marker-alt w-6 mr-4"></i> Venues</a>
+            <a id="nav-gallery" class="sidebar-link flex items-center px-6 py-3 text-slate-700"><i class="fas fa-images w-6 mr-4"></i> Gallery</a>
+            <a id="nav-newsletter" class="sidebar-link flex items-center px-6 py-3 text-slate-700"><i class="fas fa-envelope w-6 mr-4"></i> Newsletter</a>
+        </nav>
+    </aside>
+
+    <main class="flex-1 p-4 md:p-8 overflow-y-auto w-full">
+        <button id="burger-btn" class="text-slate-600 hover:text-indigo-600 md:hidden mb-4 flex items-center gap-2 px-3 py-2 rounded-md bg-white border">
+            <i class="fas fa-bars fa-lg"></i>
+            <span class="font-semibold">Menu</span>
+        </button>
+
+        <div id="dashboard-content">
+            <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Welcome Back!</h1>
+            <p class="text-slate-600 mb-8">Here's a snapshot of your site's activity.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-md border flex items-center"><div class="p-4 bg-cyan-100 text-cyan-600 rounded-full mr-4"><i class="fas fa-calendar-alt fa-2x"></i></div><div><p class="text-sm text-slate-500 font-medium">Upcoming Gigs</p><p id="dashboard-stat-upcoming" class="text-3xl font-bold">0</p></div></div>
+                <div class="bg-white p-6 rounded-xl shadow-md border flex items-center"><div class="p-4 bg-yellow-100 text-yellow-600 rounded-full mr-4"><i class="fas fa-hourglass-half fa-2x"></i></div><div><p class="text-sm text-slate-500 font-medium">Pending Reviews</p><p id="dashboard-stat-pending" class="text-3xl font-bold">0</p></div></div>
+                <div class="bg-white p-6 rounded-xl shadow-md border flex items-center"><div class="p-4 bg-purple-100 text-purple-600 rounded-full mr-4"><i class="fas fa-guitar fa-2x"></i></div><div><p class="text-sm text-slate-500 font-medium">Total Gigs</p><p id="dashboard-stat-total-gigs" class="text-3xl font-bold">0</p></div></div>
+                <div class="bg-white p-6 rounded-xl shadow-md border flex items-center"><div class="p-4 bg-green-100 text-green-600 rounded-full mr-4"><i class="fas fa-users fa-2x"></i></div><div><p class="text-sm text-slate-500 font-medium">Total Reviews</p><p id="dashboard-stat-total-reviews" class="text-3xl font-bold">0</p></div></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md border mb-8">
+                <h2 class="text-xl font-semibold p-6 border-b">Monthly Activity</h2>
+                <div class="p-6 mx-auto" style="max-width: 800px; height: 350px;"><canvas id="dashboard-chart"></canvas></div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-md border">
+                    <div class="p-6 border-b flex justify-between items-center"><h2 class="text-xl font-semibold">Upcoming Gigs</h2><button id="dashboard-view-gigs-btn" class="text-sm font-semibold text-indigo-600 hover:text-indigo-800">View All &rarr;</button></div>
+                    <div id="dashboard-upcoming-gigs" class="p-6 space-y-4"><p class="text-slate-500 text-center py-8">Loading upcoming gigs...</p></div>
+                </div>
+                <div class="bg-white rounded-xl shadow-md border">
+                    <div class="p-6 border-b flex justify-between items-center"><h2 class="text-xl font-semibold">Pending Reviews</h2><button id="dashboard-view-reviews-btn" class="text-sm font-semibold text-indigo-600 hover:text-indigo-800">View All &rarr;</button></div>
+                    <div id="dashboard-pending-reviews" class="p-6 space-y-4"><p class="text-slate-500 text-center py-8">Loading pending reviews...</p></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="reviews-content" class="hidden">
+            <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 mb-8">Reviews Management</h1>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><div class="bg-white p-6 rounded-xl shadow-md border flex items-center"><div class="p-4 bg-blue-100 text-blue-600 rounded-full mr-4"><i class="fas fa-star fa-2x"></i></div><div><p class="text-sm text-slate-500 font-medium">Total Reviews</p><p id="stat-total-reviews" class="text-3xl font-bold">0</p></div></div><div class="bg-white p-6 rounded-xl shadow-md border flex items-center"><div class="p-4 bg-green-100 text-green-600 rounded-full mr-4"><i class="fas fa-check-circle fa-2x"></i></div><div><p class="text-sm text-slate-500 font-medium">Approved Reviews</p><p id="stat-approved-reviews" class="text-3xl font-bold">0</p></div></div><div class="bg-white p-6 rounded-xl shadow-md border flex items-center"><div class="p-4 bg-yellow-100 text-yellow-600 rounded-full mr-4"><i class="fas fa-hourglass-half fa-2x"></i></div><div><p class="text-sm text-slate-500 font-medium">Pending Approval</p><p id="stat-pending-reviews" class="text-3xl font-bold">0</p></div></div></div>
+            <div class="bg-white rounded-xl shadow-md border mb-8">
+                <h2 class="text-xl font-semibold p-6 border-b">Rating Distribution</h2>
+                <div class="p-6 mx-auto" style="max-width: 280px;"><canvas id="reviews-chart"></canvas></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md border overflow-hidden"><h2 class="text-xl font-semibold p-6 border-b">Manage Reviews</h2><div class="overflow-x-auto"><table class="admin-table w-full text-sm text-left"><thead class="text-xs uppercase"><tr><th class="px-2 md:px-6 py-3">#</th><th class="px-2 md:px-6 py-3">Reviewer</th><th class="px-2 md:px-6 py-3">Band / Venue</th><th class="px-2 md:px-6 py-3">Rating</th><th class="px-2 md:px-6 py-3">Review</th><th class="px-2 md:px-6 py-3 text-center">Status</th><th class="px-2 md:px-6 py-3 text-center">Actions</th></tr></thead><tbody id="reviews-table-body"></tbody></table><div id="no-reviews-message" class="text-center py-12 px-6"><p class="text-slate-500">Loading Reviews...</p></div></div></div>
+        </div>
+
+        <div id="gigs-content" class="hidden">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-4">
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">Gigs Management</h1>
+                <div class="flex items-center gap-2">
+                    <button id="run-geolocation-btn" class="px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg shadow-md hover:bg-amber-600 flex items-center justify-center gap-2">
+                        <i class="fas fa-map-marked-alt"></i> Run Gig Geolocation
+                    </button>
+                    <button id="add-gig-btn" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 flex items-center justify-center gap-2">
+                        <i class="fas fa-plus"></i> Add Gig
                     </button>
                 </div>
-            </form>
-            <p id="form-message" class="mt-3 text-sm font-medium h-5"></p>
-        </header>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-            <div class="feature-card bg-white p-8 rounded-xl shadow-lg border border-slate-200 opacity-0 fade-in-up delay-2">
-                <div class="flex justify-center mb-4">
-                    <div class="bg-indigo-100 text-indigo-600 rounded-full h-14 w-14 flex items-center justify-center">
-                        <i class="fas fa-music fa-2x"></i>
-                    </div>
-                </div>
-                <h3 class="text-lg font-bold text-slate-900">Discover Hidden Gems</h3>
-                <p class="mt-2 text-sm text-slate-600">We spotlight the emerging artists and local bands you won't find anywhere else.</p>
             </div>
-            <div class="feature-card bg-white p-8 rounded-xl shadow-lg border border-slate-200 opacity-0 fade-in-up delay-3">
-                 <div class="flex justify-center mb-4">
-                    <div class="bg-indigo-100 text-indigo-600 rounded-full h-14 w-14 flex items-center justify-center">
-                        <i class="fas fa-microphone-alt fa-2x"></i>
-                    </div>
-                </div>
-                <h3 class="text-lg font-bold text-slate-900">Never Miss a Show</h3>
-                <p class="mt-2 text-sm text-slate-600">With our weekly roundup, you'll always know about the best live performances happening near you.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><div class="bg-white p-6 rounded-xl shadow-md border flex items-center"><div class="p-4 bg-purple-100 text-purple-600 rounded-full mr-4"><i class="fas fa-guitar fa-2x"></i></div><div><p class="text-sm text-slate-500 font-medium">Total Gigs</p><p id="stat-total-gigs" class="text-3xl font-bold">0</p></div></div><div class="bg-white p-6 rounded-xl shadow-md border flex items-center"><div class="p-4 bg-cyan-100 text-cyan-600 rounded-full mr-4"><i class="fas fa-calendar-alt fa-2x"></i></div><div><p class="text-sm text-slate-500 font-medium">Upcoming Gigs</p><p id="stat-upcoming-gigs" class="text-3xl font-bold">0</p></div></div><div class="bg-white p-6 rounded-xl shadow-md border flex items-center"><div class="p-4 bg-orange-100 text-orange-600 rounded-full mr-4"><i class="fas fa-history fa-2x"></i></div><div><p class="text-sm text-slate-500 font-medium">Past Gigs</p><p id="stat-past-gigs" class="text-3xl font-bold">0</p></div></div></div>
+            <div class="bg-white rounded-xl shadow-md border mb-8">
+                <h2 class="text-xl font-semibold p-6 border-b">Gigs by Day of the Week</h2>
+                <div class="p-6 mx-auto" style="max-width: 700px; height: 300px;"><canvas id="gigs-chart"></canvas></div>
             </div>
-            <div class="feature-card bg-white p-8 rounded-xl shadow-lg border border-slate-200 opacity-0 fade-in-up delay-4">
-                 <div class="flex justify-center mb-4">
-                    <div class="bg-indigo-100 text-indigo-600 rounded-full h-14 w-14 flex items-center justify-center">
-                        <i class="fas fa-calendar-check fa-2x"></i>
-                    </div>
-                </div>
-                <h3 class="text-lg font-bold text-slate-900">Stay In The Know</h3>
-                <p class="mt-2 text-sm text-slate-600">A weekly, curated list of the best upcoming shows in your area.</p>
-            </div>
+            <div class="bg-white rounded-xl shadow-md border overflow-hidden"><h2 class="text-xl font-semibold p-6 border-b">Manage Gigs</h2><div class="overflow-x-auto"><table class="admin-table w-full text-sm text-left"><thead class="text-xs uppercase"><tr><th class="px-2 md:px-6 py-3">#</th><th class="px-2 md:px-6 py-3">Date & Time</th><th class="px-2 md:px-6 py-3">Band Name</th><th class="px-2 md:px-6 py-3">Venue Name</th><th class="px-2 md:px-6 py-3">Address</th><th class="px-2 md:px-6 py-3 text-center">Actions</th></tr></thead><tbody id="gigs-table-body"></tbody></table><div id="no-gigs-message" class="text-center py-12 px-6"><p class="text-slate-500">Loading Gigs...</p></div></div></div>
         </div>
 
-    </div>
-    
-    <div id="bottom-nav" class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 z-20000">
-        <div class="flex items-center w-full px-4 py-3 gap-4">
-            <img class="w-12 h-12 rounded-full object-cover pointer-events-none" src="https://i.imghippo.com/files/vPMA5186Y.png" alt="User Profile Picture">
-            
-            <div class="flex flex-1 items-center justify-center gap-2 min-w-0">
-                <a href="https://www.mybandstonight.com/bands-gallery" target="_top" class="flex-1 flex flex-col items-center justify-center text-gray-500 hover:bg-blue-50 hover:text-blue-600 py-2 rounded-xl transition-all duration-300">
-                    <svg class="w-6 h-6 mb-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                    </svg>
-                    <span class="text-xs font-medium text-center">Bands Gallery</span>
-                </a>
-                <a href="https://www.mybandstonight.com/venue-map" target="_top" class="flex-1 flex flex-col items-center justify-center text-gray-500 hover:bg-blue-50 hover:text-blue-600 py-2 rounded-xl transition-all duration-300">
-                     <svg class="w-6 h-6 mb-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                     </svg>
-                    <span class="text-xs font-medium text-center">Venue Map</span>
-                </a>
-                <a href="https://www.mybandstonight.com/home" target="_top" class="flex-1 flex flex-col items-center justify-center text-gray-500 hover:bg-blue-50 hover:text-blue-600 py-2 rounded-xl transition-all duration-300">
-                    <svg class="w-6 h-6 mb-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 016 0v8.25a3 3 0 01-3 3z" />
-                    </svg>
-                    <span class="text-xs font-medium text-center">My Bands Tonight</span>
-                </a>
-                <a href="https://www.mybandstonight.com/newsletter" target="_top" class="flex-1 flex flex-col items-center justify-center bg-blue-600 text-white py-2 rounded-xl transition-all duration-300 shadow-lg">
-                    <svg class="w-6 h-6 mb-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                    </svg>
-                    <span class="text-xs font-semibold text-center">Newsletter</span>
-                </a>
-                <a href="https://www.mybandstonight.com/band-reviews" target="_top" class="flex-1 flex flex-col items-center justify-center text-gray-500 hover:bg-blue-50 hover:text-blue-600 py-2 rounded-xl transition-all duration-300">
-                    <svg class="w-6 h-6 mb-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-                    </svg>
-                    <span class="text-xs font-medium text-center">Leave a Review</span>
-                </a>
+        <div id="venues-content" class="hidden">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-4">
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">Venues Management</h1>
+                <div class="flex items-center gap-2">
+                    <button id="run-venue-geolocation-btn" class="px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg shadow-md hover:bg-amber-600 flex items-center justify-center gap-2">
+                        <i class="fas fa-map-marked-alt"></i> Run Venue Geolocation
+                    </button>
+                    <button id="add-venue-btn" class="px-4 py-2 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700 flex items-center justify-center gap-2">
+                        <i class="fas fa-plus"></i> Add Venue
+                    </button>
+                </div>
             </div>
-
-            <div class="relative">
-                <button id="menu-button" class="block w-12 h-12 relative rounded-full">
-                    <img class="w-12 h-12 rounded-full object-cover" src="https://i.imghippo.com/files/IqE3821yyM.png" alt="Menu Button">
-                    <div class="absolute inset-0 bg-black bg-opacity-20 rounded-full flex items-center justify-center">
-                        <div id="hamburger-icon" class="space-y-1.5">
-                            <span class="hamburger-line line-1 block w-6 h-[3px] bg-white rounded-full"></span>
-                            <span class="hamburger-line line-2 block w-6 h-[3px] bg-white rounded-full"></span>
-                            <span class="hamburger-line line-3 block w-6 h-[3px] bg-white rounded-full"></span>
-                        </div>
-                    </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-md border flex items-center">
+                    <div class="p-4 bg-teal-100 text-teal-600 rounded-full mr-4"><i class="fas fa-map-marker-alt fa-2x"></i></div>
+                    <div><p class="text-sm text-slate-500 font-medium">Total Venues</p><p id="stat-total-venues" class="text-3xl font-bold">0</p></div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md border mb-8">
+                <h2 class="text-xl font-semibold p-6 border-b">Top Venues by Gig Count</h2>
+                <div class="p-6 mx-auto" style="max-width: 700px; height: 300px;"><canvas id="venues-chart"></canvas></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md border overflow-hidden">
+                <h2 class="text-xl font-semibold p-6 border-b">Manage Venues</h2>
+                <div class="overflow-x-auto">
+                    <table class="admin-table w-full text-sm text-left">
+                        <thead class="text-xs uppercase">
+                            <tr><th class="px-2 md:px-6 py-3">#</th><th class="px-2 md:px-6 py-3">Venue Name</th><th class="px-2 md:px-6 py-3">Address</th><th class="px-2 md:px-6 py-3">Website</th><th class="px-2 md:px-6 py-3">Phone</th><th class="px-2 md:px-6 py-3 text-center">Actions</th></tr>
+                        </thead>
+                        <tbody id="venues-table-body"></tbody>
+                    </table>
+                    <div id="no-venues-message" class="text-center py-12 px-6"><p class="text-slate-500">Loading Venues...</p></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="gallery-content" class="hidden">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-4">
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">Gallery Management</h1>
+                <button id="add-gallery-btn" class="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 flex items-center justify-center gap-2"><i class="fas fa-plus"></i> Add Artist</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-md border flex items-center">
+                    <div class="p-4 bg-indigo-100 text-indigo-600 rounded-full mr-4"><i class="fas fa-images fa-2x"></i></div>
+                    <div><p class="text-sm text-slate-500 font-medium">Total Artists</p><p id="stat-total-gallery-items" class="text-3xl font-bold">0</p></div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md border mb-8">
+                <h2 class="text-xl font-semibold p-6 border-b">Artist Website Presence</h2>
+                <div class="p-6 mx-auto" style="max-width: 250px;"><canvas id="gallery-chart"></canvas></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md border overflow-hidden">
+                <h2 class="text-xl font-semibold p-6 border-b">Manage Gallery</h2>
+                <div class="overflow-x-auto">
+                    <table class="admin-table w-full text-sm text-left">
+                        <thead class="text-xs uppercase">
+                            <tr><th class="px-2 md:px-6 py-3">#</th><th class="px-2 md:px-6 py-3">Image Preview</th><th class="px-2 md:px-6 py-3">Artist Name</th><th class="px-2 md:px-6 py-3">Website</th><th class="px-2 md:px-6 py-3 text-center">Actions</th></tr>
+                        </thead>
+                        <tbody id="gallery-table-body"></tbody>
+                    </table>
+                    <div id="no-gallery-message" class="text-center py-12 px-6"><p class="text-slate-500">Loading Gallery Items...</p></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="newsletter-content" class="hidden">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-8 gap-4">
+                <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">Newsletter Subscriptions</h1>
+                <button id="add-newsletter-btn" class="px-4 py-2 bg-rose-600 text-white font-semibold rounded-lg shadow-md hover:bg-rose-700 flex items-center justify-center gap-2">
+                    <i class="fas fa-plus"></i> Add Subscriber
                 </button>
-                <div id="contact-menu" class="hidden absolute bottom-full right-0 mb-4 w-48 bg-white border border-gray-200 rounded-lg shadow-lg">
-                    <a href="mailto:info@mybandstonight.com" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200 rounded-t-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-3 text-gray-500">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                        </svg>
-                        <span>Contact Us</span>
-                    </a>
-                    <a href="https://www.mybandstonight.com/admin-panel" target="_top" class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200 rounded-b-lg border-t border-gray-100">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-3 text-gray-500">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286zm0 13.036h.008v.008h-.008v-.008z" />
-                        </svg>
-                        <span>Admin</span>
-                    </a>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-md border flex items-center">
+                    <div class="p-4 bg-rose-100 text-rose-600 rounded-full mr-4"><i class="fas fa-users fa-2x"></i></div>
+                    <div><p class="text-sm text-slate-500 font-medium">Total Subscribers</p><p id="stat-total-newsletter" class="text-3xl font-bold">0</p></div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md border overflow-hidden">
+                <h2 class="text-xl font-semibold p-6 border-b">Manage Subscribers</h2>
+                <div class="overflow-x-auto">
+                    <table class="admin-table w-full text-sm text-left">
+                        <thead class="text-xs uppercase">
+                            <tr>
+                                <th class="px-2 md:px-6 py-3">#</th>
+                                <th class="px-2 md:px-6 py-3">Email</th>
+                                <th class="px-2 md:px-6 py-3">Subscribed On (MM-DD-YYYY)</th>
+                                <th class="px-2 md:px-6 py-3 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="newsletter-table-body"></tbody>
+                    </table>
+                    <div id="no-newsletter-message" class="text-center py-12 px-6"><p class="text-slate-500">Loading Subscribers...</p></div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- Loading Screen Logic ---
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay) {
-                setTimeout(() => {
-                    loadingOverlay.style.opacity = '0';
-                    setTimeout(() => {
-                        loadingOverlay.style.display = 'none';
-                    }, 500); // Wait for fade-out transition (0.5s)
-                }, 1500); // Display for 1.5 seconds
+    </main>
+</div>
+
+<div id="edit-gig-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 hidden overflow-y-auto"><div class="w-full max-w-3xl bg-white rounded-xl shadow-2xl m-4"><div class="p-6 border-b flex justify-between items-center"><h2 class="text-2xl font-bold text-slate-800">Edit Gig</h2><button class="modal-close-btn text-slate-400 hover:text-slate-600 text-2xl">&times;</button></div><form id="edit-gig-form" class="p-6"><input type="hidden" name="rowId"><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"><div><label class="text-sm font-medium">Date</label><input type="date" name="date" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Time</label><div class="flex items-center mt-1"><input type="text" name="hour" placeholder="H" maxlength="2" class="w-12 p-2 border rounded-md text-center"><span class="font-bold mx-1">:</span><input type="text" name="minutes" placeholder="MM" maxlength="2" class="w-16 p-2 border rounded-md text-center"><select name="ampm" class="ml-2 p-2 border rounded-md bg-white"><option>AM</option><option>PM</option></select></div></div><div><label class="text-sm font-medium">Band Name</label><input type="text" name="name" class="w-full mt-1 p-2 border rounded-md"></div><div class="lg:col-span-3"><label class="text-sm font-medium">Address</label><input type="text" name="address" class="w-full mt-1 p-2 border rounded-md"></div><div class="lg:col-span-3"><label class="text-sm font-medium">Google Maps Link</label><input type="url" name="googleMapsLink" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Latitude</label><input type="text" name="latitude" placeholder="e.g., 40.7128" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Longitude</label><input type="text" name="longitude" placeholder="e.g., -74.0060" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Band Website</label><input type="url" name="band_website" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Band Email</label><input type="email" name="band_email" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Venue Name</label><input type="text" name="venue_name" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Venue Website</label><input type="url" name="venue_website" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Venue Phone</label><input type="tel" name="venue_phone_number" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Venue Email</label><input type="email" name="venue_email" class="w-full mt-1 p-2 border rounded-md"></div></div><div class="mt-6 flex justify-end gap-4"><button type="button" class="modal-cancel-btn px-4 py-2 bg-slate-200 rounded-md">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md">Save Changes</button></div></form></div></div>
+<div id="add-gig-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 hidden overflow-y-auto"><div class="w-full max-w-3xl bg-white rounded-xl shadow-2xl m-4"><div class="p-6 border-b flex justify-between items-center"><h2 class="text-2xl font-bold text-slate-800">Add New Gig</h2><button class="modal-close-btn text-slate-400 hover:text-slate-600 text-2xl">&times;</button></div><form id="add-gig-form" class="p-6"><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"><div><label class="text-sm font-medium">Date</label><input type="date" name="date" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Time</label><div class="flex items-center mt-1"><input type="text" name="hour" placeholder="H" maxlength="2" class="w-12 p-2 border rounded-md text-center"><span class="font-bold mx-1">:</span><input type="text" name="minutes" placeholder="MM" maxlength="2" class="w-16 p-2 border rounded-md text-center"><select name="ampm" class="ml-2 p-2 border rounded-md bg-white"><option>AM</option><option>PM</option></select></div></div><div><label class="text-sm font-medium">Band Name</label><input type="text" name="name" class="w-full mt-1 p-2 border rounded-md" required></div><div class="lg:col-span-3"><label class="text-sm font-medium">Address</label><input type="text" name="address" class="w-full mt-1 p-2 border rounded-md"></div><div class="lg:col-span-3"><label class="text-sm font-medium">Google Maps Link</label><input type="url" name="googleMapsLink" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Latitude</label><input type="text" name="latitude" placeholder="e.g., 40.7128" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Longitude</label><input type="text" name="longitude" placeholder="e.g., -74.0060" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Band Website</label><input type="url" name="band_website" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Band Email</label><input type="email" name="band_email" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Venue Name</label><input type="text" name="venue_name" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Venue Website</label><input type="url" name="venue_website" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Venue Phone</label><input type="tel" name="venue_phone_number" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Venue Email</label><input type="email" name="venue_email" class="w-full mt-1 p-2 border rounded-md"></div></div><div class="mt-6 flex justify-end gap-4"><button type="button" class="modal-cancel-btn px-4 py-2 bg-slate-200 rounded-md">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md">Add Gig</button></div></form></div></div>
+<div id="add-venue-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 hidden overflow-y-auto"><div class="w-full max-w-xl bg-white rounded-xl shadow-2xl m-4"><div class="p-6 border-b flex justify-between items-center"><h2 class="text-2xl font-bold text-slate-800">Add New Venue</h2><button class="modal-close-btn text-slate-400 hover:text-slate-600 text-2xl">&times;</button></div><form id="add-venue-form" class="p-6"><div class="space-y-4"><div><label class="text-sm font-medium">Venue Name</label><input type="text" name="venueName" placeholder="The Rock House" class="w-full mt-1 p-2 border rounded-md" required></div><div><label class="text-sm font-medium">Venue Address</label><input type="text" name="venueAddress" placeholder="123 Music Lane" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Venue Website</label><input type="url" name="venueWebsite" placeholder="https://therockhouse.com" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Venue Phone Number</label><input type="tel" name="venuePhoneNumber" placeholder="(555) 123-4567" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Latitude</label><input type="text" name="latitude" placeholder="e.g., 40.9565" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Longitude</label><input type="text" name="longitude" placeholder="e.g., -72.2451" class="w-full mt-1 p-2 border rounded-md"></div></div><div class="mt-6 flex justify-end gap-4"><button type="button" class="modal-cancel-btn px-4 py-2 bg-slate-200 rounded-md">Cancel</button><button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded-md">Add Venue</button></div></form></div></div>
+<div id="edit-venue-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 hidden overflow-y-auto"><div class="w-full max-w-xl bg-white rounded-xl shadow-2xl m-4"><div class="p-6 border-b flex justify-between items-center"><h2 class="text-2xl font-bold text-slate-800">Edit Venue</h2><button class="modal-close-btn text-slate-400 hover:text-slate-600 text-2xl">&times;</button></div><form id="edit-venue-form" class="p-6"><input type="hidden" name="rowId"><div class="space-y-4"><div><label class="text-sm font-medium">Venue Name</label><input type="text" name="venueName" class="w-full mt-1 p-2 border rounded-md" required></div><div><label class="text-sm font-medium">Venue Address</label><input type="text" name="venueAddress" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Venue Website</label><input type="url" name="venueWebsite" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Venue Phone Number</label><input type="tel" name="venuePhoneNumber" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Latitude</label><input type="text" name="latitude" placeholder="e.g., 40.9565" class="w-full mt-1 p-2 border rounded-md"></div><div><label class="text-sm font-medium">Longitude</label><input type="text" name="longitude" placeholder="e.g., -72.2451" class="w-full mt-1 p-2 border rounded-md"></div></div><div class="mt-6 flex justify-end gap-4"><button type="button" class="modal-cancel-btn px-4 py-2 bg-slate-200 rounded-md">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md">Save Changes</button></div></form></div></div>
+<div id="add-gallery-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 hidden overflow-y-auto"><div class="w-full max-w-xl bg-white rounded-xl shadow-2xl m-4"><div class="p-6 border-b flex justify-between items-center"><h2 class="text-2xl font-bold text-slate-800">Add to Gallery</h2><button class="modal-close-btn text-slate-400 hover:text-slate-600 text-2xl">&times;</button></div><form id="add-gallery-form" class="p-6"><div class="space-y-4"><div><label class="text-sm font-medium">Image URL</label><input type="url" name="imageUrl" placeholder="https://example.com/image.jpg" class="w-full mt-1 p-2 border rounded-md" required></div><div><label class="text-sm font-medium">Text</label><textarea name="text" rows="3" placeholder="Enter descriptive text..." class="w-full mt-1 p-2 border rounded-md"></textarea></div><div><label class="text-sm font-medium">Band Website (Optional)</label><input type="url" name="website" placeholder="https://exampleband.com" class="w-full mt-1 p-2 border rounded-md"></div></div><div class="mt-4 border p-4 rounded-lg bg-slate-50"><h4 class="text-sm font-bold mb-2 text-slate-600">Preview</h4><div id="add-preview-container" class="text-center"><img id="add-preview-img" src="https://via.placeholder.com/400x200.png?text=Image+Preview" class="max-w-xs h-auto rounded-md mx-auto mb-2 bg-slate-200 object-cover" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x200.png?text=Invalid+URL';"><p id="add-preview-text" class="text-slate-700 italic">Your text will appear here.</p></div></div><div class="mt-6 flex justify-end gap-4"><button type="button" class="modal-cancel-btn px-4 py-2 bg-slate-200 rounded-md">Cancel</button><button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md">Add to Gallery</button></div></form></div></div>
+<div id="edit-gallery-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 hidden overflow-y-auto"><div class="w-full max-w-xl bg-white rounded-xl shadow-2xl m-4"><div class="p-6 border-b flex justify-between items-center"><h2 class="text-2xl font-bold text-slate-800">Edit Gallery Item</h2><button class="modal-close-btn text-slate-400 hover:text-slate-600 text-2xl">&times;</button></div><form id="edit-gallery-form" class="p-6"><input type="hidden" name="rowId"><div class="space-y-4"><div><label class="text-sm font-medium">Image URL</label><input type="url" name="imageUrl" class="w-full mt-1 p-2 border rounded-md" required></div><div><label class="text-sm font-medium">Text</label><textarea name="text" rows="3" class="w-full mt-1 p-2 border rounded-md"></textarea></div><div><label class="text-sm font-medium">Band Website (Optional)</label><input type="url" name="website" class="w-full mt-1 p-2 border rounded-md"></div></div><div class="mt-4 border p-4 rounded-lg bg-slate-50"><h4 class="text-sm font-bold mb-2 text-slate-600">Preview</h4><div id="edit-preview-container" class="text-center"><img id="edit-preview-img" src="https://via.placeholder.com/400x200.png?text=Image+Preview" class="max-w-xs h-auto rounded-md mx-auto mb-2 bg-slate-200 object-cover" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x200.png?text=Invalid+URL';"><p id="edit-preview-text" class="text-slate-700 italic"></p></div></div><div class="mt-6 flex justify-end gap-4"><button type="button" class="modal-cancel-btn px-4 py-2 bg-slate-200 rounded-md">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md">Save Changes</button></div></form></div></div>
+<div id="add-newsletter-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 hidden overflow-y-auto"><div class="w-full max-w-lg bg-white rounded-xl shadow-2xl m-4"><div class="p-6 border-b flex justify-between items-center"><h2 class="text-2xl font-bold text-slate-800">Add New Subscriber</h2><button class="modal-close-btn text-slate-400 hover:text-slate-600 text-2xl">&times;</button></div><form id="add-newsletter-form" class="p-6"><div class="space-y-4"><div><label class="text-sm font-medium">Email Address</label><input type="email" name="email" placeholder="subscriber@example.com" class="w-full mt-1 p-2 border rounded-md" required></div><div><label class="text-sm font-medium">Timestamp (MM-DD-YYYY)</label><input type="text" name="timestamp" placeholder="e.g., 7/28/2025" class="w-full mt-1 p-2 border rounded-md"></div></div><div class="mt-6 flex justify-end gap-4"><button type="button" class="modal-cancel-btn px-4 py-2 bg-slate-200 rounded-md">Cancel</button><button type="submit" class="px-4 py-2 bg-rose-600 text-white rounded-md">Add Subscriber</button></div></form></div></div>
+<div id="edit-newsletter-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 hidden overflow-y-auto"><div class="w-full max-w-lg bg-white rounded-xl shadow-2xl m-4"><div class="p-6 border-b flex justify-between items-center"><h2 class="text-2xl font-bold text-slate-800">Edit Subscriber</h2><button class="modal-close-btn text-slate-400 hover:text-slate-600 text-2xl">&times;</button></div><form id="edit-newsletter-form" class="p-6"><input type="hidden" name="rowId"><div class="space-y-4"><div><label class="text-sm font-medium">Email Address</label><input type="email" name="email" class="w-full mt-1 p-2 border rounded-md" required></div><div><label class="text-sm font-medium">Timestamp (MM-DD-YYYY)</label><input type="text" name="timestamp" class="w-full mt-1 p-2 border rounded-md"></div></div><div class="mt-6 flex justify-end gap-4"><button type="button" class="modal-cancel-btn px-4 py-2 bg-slate-200 rounded-md">Cancel</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md">Save Changes</button></div></form></div></div>
+
+<div id="confirm-modal-container" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4 hidden"><div class="confirm-modal"><h3 id="confirm-title" class="text-lg font-bold text-slate-800">Are you sure?</h3><p id="confirm-message" class="text-slate-600 mt-2 mb-6">This action cannot be undone.</p><div class="flex justify-center gap-4"><button id="confirm-cancel-btn" class="px-6 py-2 bg-slate-200 text-slate-800 rounded-md font-semibold">Cancel</button><button id="confirm-ok-btn" class="px-6 py-2 bg-red-600 text-white rounded-md font-semibold">Delete</button></div></div></div>
+<div id="customAlert-container"></div>
+<div id="loadingOverlay" style="display: none;"><i class="fas fa-spinner fa-spin fa-3x text-indigo-600"></i></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- URLs and State Variables ---
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyVb94J7jVhaOO2X8NaUWWCMt0Qqluv7B_cO3uehPvrmKL8MjES58JJDVCUC6zk19Yngw/exec";
+    const GEOAPIFY_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzvDvhjD6c1hLSnb81533qp7no4_x5EKFI4vN7JQd52zN8-7v_0mlQqovcOBJwgKkwqdw/exec";
+    
+    const REVIEWS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRaeCIG4k0nRJAk-IQJRWr9OzkaKEVEWon5mdULnGEPhhW1AHzVo4oXB6eEuGvRRVSglpWg4em18Ri0/pub?gid=1554482653&single=true&output=csv"; 
+    const GIG_LIST_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRaeCIG4k0nRJAk-IQJRWr9OzkaKEVEWon5mdULnGEPhhW1AHzVo4oXB6eEuGvRRVSglpWg4em18Ri0/pub?gid=1813652457&single=true&output=csv";
+    const GALLERY_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRaeCIG4k0nRJAk-IQJRWr9OzkaKEVEWon5mdULnGEPhhW1AHzVo4oXB6eEuGvRRVSglpWg4em18Ri0/pub?gid=1107946029&single=true&output=csv";
+    const VENUES_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRaeCIG4k0nRJAk-IQJRWr9OzkaKEVEWon5mdULnGEPhhW1AHzVo4oXB6eEuGvRRVSglpWg4em18Ri0/pub?gid=1904894569&single=true&output=csv";
+
+    let allReviews = [], allGigs = [], allGalleryItems = [], allVenues = [], allNewsletterSubs = [];
+    let dashboardChart, reviewsChart, gigsChart, venuesChart, galleryChart;
+
+    // --- Global Chart Styling ---
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.weight = '500';
+    Chart.defaults.color = '#64748b';
+    Chart.defaults.plugins.legend.position = 'bottom';
+    Chart.defaults.plugins.legend.labels.usePointStyle = true;
+    Chart.defaults.plugins.legend.labels.padding = 20;
+    Chart.defaults.plugins.tooltip.backgroundColor = '#1e293b';
+    Chart.defaults.plugins.tooltip.titleColor = '#f1f5f9';
+    Chart.defaults.plugins.tooltip.bodyColor = '#cbd5e1';
+    Chart.defaults.plugins.tooltip.cornerRadius = 4;
+    Chart.defaults.plugins.tooltip.padding = 10;
+    Chart.defaults.plugins.tooltip.displayColors = false;
+
+    // --- Element Selectors ---
+    const passwordOverlay=document.getElementById("password-overlay"),passwordForm=document.getElementById("password-form"),passwordInput=document.getElementById("password-input"),passwordError=document.getElementById("password-error"),loginButton=document.getElementById("login-button");
+    const loadingOverlay=document.getElementById("loadingOverlay"),customAlertContainer=document.getElementById("customAlert-container");
+    const confirmModalContainer=document.getElementById('confirm-modal-container'),confirmTitle=document.getElementById('confirm-title'),confirmMessage=document.getElementById('confirm-message'),confirmOkBtn=document.getElementById('confirm-ok-btn'),confirmCancelBtn=document.getElementById('confirm-cancel-btn');
+    const burgerBtn = document.getElementById('burger-btn'), sidebar = document.getElementById('sidebar'), sidebarOverlay = document.getElementById('sidebar-overlay');
+    const reviewsTableBody=document.getElementById("reviews-table-body"),noReviewsMessage=document.getElementById("no-reviews-message");
+    const gigsTableBody=document.getElementById("gigs-table-body"),noGigsMessage=document.getElementById("no-gigs-message");
+    const galleryTableBody = document.getElementById('gallery-table-body'), noGalleryMessage = document.getElementById('no-gallery-message');
+    const venuesTableBody = document.getElementById('venues-table-body'), noVenuesMessage = document.getElementById('no-venues-message');
+    const newsletterTableBody = document.getElementById('newsletter-table-body'), noNewsletterMessage = document.getElementById('no-newsletter-message');
+    const addGigBtn=document.getElementById("add-gig-btn"), runGeolocationBtn = document.getElementById('run-geolocation-btn');
+    const addVenueBtn = document.getElementById('add-venue-btn'), runVenueGeolocationBtn = document.getElementById('run-venue-geolocation-btn');
+    const addGalleryBtn = document.getElementById('add-gallery-btn');
+    const addNewsletterBtn = document.getElementById('add-newsletter-btn');
+    const addGigModal=document.getElementById("add-gig-modal"), addGigForm=document.getElementById("add-gig-form");
+    const editGigModal=document.getElementById("edit-gig-modal"), editGigForm=document.getElementById("edit-gig-form");
+    const addVenueModal = document.getElementById('add-venue-modal'), addVenueForm = document.getElementById('add-venue-form');
+    const editVenueModal = document.getElementById('edit-venue-modal'), editVenueForm = document.getElementById('edit-venue-form');
+    const addGalleryModal = document.getElementById('add-gallery-modal'), addGalleryForm = document.getElementById('add-gallery-form');
+    const editGalleryModal = document.getElementById('edit-gallery-modal'), editGalleryForm = document.getElementById('edit-gallery-form');
+    const addNewsletterModal = document.getElementById('add-newsletter-modal'), addNewsletterForm = document.getElementById('add-newsletter-form');
+    const editNewsletterModal = document.getElementById('edit-newsletter-modal'), editNewsletterForm = document.getElementById('edit-newsletter-form');
+    const navLinks={dashboard:document.getElementById("nav-dashboard"),reviews:document.getElementById("nav-reviews"),gigs:document.getElementById("nav-gigs"),venues:document.getElementById("nav-venues"),gallery:document.getElementById("nav-gallery"), newsletter:document.getElementById("nav-newsletter")};
+    const contentAreas={dashboard:document.getElementById("dashboard-content"),reviews:document.getElementById("reviews-content"),gigs:document.getElementById("gigs-content"),venues:document.getElementById('venues-content'),gallery:document.getElementById('gallery-content'), newsletter: document.getElementById('newsletter-content')};
+
+    // --- Helper Functions ---
+    const showLoading=s=>{loadingOverlay.style.display=s?"flex":"none"};
+    const showCustomAlert=(m,type='info')=>{const t=document.createElement("div");t.className=`custom-alert-box alert-${type}`,t.textContent=m,customAlertContainer.innerHTML="",customAlertContainer.appendChild(t),setTimeout(()=>{t.classList.add("fade-out"),t.addEventListener("animationend",()=>t.remove())},3e3)};
+    const showTab=t=>{Object.values(contentAreas).forEach(a=>a&&a.classList.add("hidden")),Object.values(navLinks).forEach(l=>l.classList.remove("active")),contentAreas[t]&&navLinks[t]?(contentAreas[t].classList.remove("hidden"),navLinks[t].classList.add("active")):(contentAreas.dashboard.classList.remove("hidden"),navLinks.dashboard.classList.add("active"))};
+    const normalizeDate=e=>{if(!e)return"";const t=new Date(e);return isNaN(t.getTime())?"":`${t.getUTCFullYear()}-${String(t.getUTCMonth()+1).padStart(2,"0")}-${String(t.getUTCDate()).padStart(2,"0")}`};
+    const formatTimeDisplay = timeStr => timeStr ? timeStr.replace(/:\d{2}\s/, ' ') : "";
+    const parseTime = e => { if (!e) return { hour: "", minutes: "", ampm: "AM" }; const t = e.match(/(\d{1,2}):(\d{2})(:\d{2})?\s*(AM|PM)/i); return t ? { hour: t[1], minutes: t[2], ampm: t[4].toUpperCase() } : { hour: "", minutes: "", ampm: "AM" }; };
+    const showConfirm=(t,m)=>{confirmTitle.textContent=t;confirmMessage.textContent=m;confirmModalContainer.classList.remove('hidden');return new Promise((resolve,reject)=>{confirmOkBtn.onclick=()=>{confirmModalContainer.classList.add('hidden');resolve();};confirmCancelBtn.onclick=()=>{confirmModalContainer.classList.add('hidden');reject();};})};
+    
+    // --- UI Rendering ---
+    const refreshAllUI = () => {
+        populateGigsTable();
+        populateGigsStats();
+        populateReviewsTable();
+        populateReviewsStats();
+        populateVenuesTable();
+        populateVenuesStats();
+        populateGalleryTable();
+        populateGalleryStats();
+        populateNewsletterTable();
+        populateNewsletterStats();
+        updateDashboard();
+        renderDashboardChart();
+        renderReviewsChart();
+        renderGigsChart();
+        renderVenuesChart();
+        renderGalleryChart();
+    };
+
+    // --- Chart Rendering ---
+    const renderDashboardChart = () => {
+        const ctx = document.getElementById('dashboard-chart').getContext('2d');
+        if (dashboardChart) { dashboardChart.destroy(); }
+        const labels = [];
+        const gigData = [];
+        const reviewData = [];
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date();
+            d.setMonth(d.getMonth() - i);
+            labels.push(d.toLocaleString('default', { month: 'short', year: '2-digit' }));
+            gigData.push(0);
+            reviewData.push(0);
+        }
+        allGigs.forEach(gig => {
+            const gigDate = new Date(gig.date);
+            if (!isNaN(gigDate.getTime())) {
+                const monthYear = gigDate.toLocaleString('default', { month: 'short', year: '2-digit' });
+                const index = labels.indexOf(monthYear);
+                if (index > -1) gigData[index]++;
             }
-
-            // --- Newsletter Form Logic ---
-            const form = document.getElementById('subscribe-form');
-            const submitButton = document.getElementById('submit-button');
-            const formMessage = document.getElementById('form-message');
-            const scriptURL = 'https://script.google.com/macros/s/AKfycbwTR59NlNbE4i3GK9-ptIpbqQwYuuBRvCVigGLO2xFFvlwTMwwDPvEF7mqgUQ5Niou8_Q/exec'; // <-- MAKE SURE YOUR URL IS STILL HERE
-
-            form.addEventListener('submit', e => {
-                e.preventDefault();
-                submitButton.disabled = true;
-                submitButton.textContent = 'Checking...';
-                
-                fetch(scriptURL, { method: 'POST', body: new FormData(form)})
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.result === 'success') {
-                            formMessage.textContent = data.message;
-                            formMessage.style.color = '#10B981'; // Green
-                            form.reset();
-                        } else if (data.result === 'duplicate') {
-                            formMessage.textContent = data.message;
-                            formMessage.style.color = '#F59E0B'; // Amber
-                        } else {
-                            throw new Error(data.error || 'An unknown error occurred.');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error!', error.message);
-                        formMessage.textContent = 'Oops! Something went wrong.';
-                        formMessage.style.color = '#EF4444'; // Red
-                    })
-                    .finally(() => {
-                        submitButton.disabled = false;
-                        submitButton.textContent = 'Subscribe';
-                    });
-            });
-
-            // --- Menu Bar Logic ---
-            const menuButton = document.getElementById('menu-button');
-            const contactMenu = document.getElementById('contact-menu');
-            const hamburgerIcon = document.getElementById('hamburger-icon');
-
-            menuButton.addEventListener('click', (event) => {
-                event.stopPropagation();
-                contactMenu.classList.toggle('hidden');
-                hamburgerIcon.classList.toggle('open');
-            });
-
-            document.addEventListener('click', (event) => {
-                if (!contactMenu.classList.contains('hidden')) {
-                    if (!menuButton.contains(event.target)) {
-                        contactMenu.classList.add('hidden');
-                        hamburgerIcon.classList.remove('open');
-                    }
-                }
-            });
         });
-    </script>
+        allReviews.forEach(review => {
+            const reviewDate = new Date(review.createdAt);
+            if (!isNaN(reviewDate.getTime())) {
+                const monthYear = reviewDate.toLocaleString('default', { month: 'short', year: '2-digit' });
+                const index = labels.indexOf(monthYear);
+                if (index > -1) reviewData[index]++;
+            }
+        });
+        dashboardChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Gigs', data: gigData, backgroundColor: '#4f46e5', borderRadius: 4, barPercentage: 0.6 },
+                    { label: 'Reviews', data: reviewData, backgroundColor: '#22c55e', borderRadius: 4, barPercentage: 0.6 }
+                ]
+            },
+            options: { 
+                responsive: true, maintainAspectRatio: false,
+                scales: { 
+                    y: { beginAtZero: true, ticks: { stepSize: 1, padding: 10 }, grid: { drawBorder: false, color: '#e2e8f0' } },
+                    x: { grid: { display: false } }
+                } 
+            }
+        });
+    };
+    const renderReviewsChart = () => {
+        const ctx = document.getElementById('reviews-chart').getContext('2d');
+        if (reviewsChart) { reviewsChart.destroy(); }
+        const ratings = allReviews.reduce((acc, review) => {
+            const rating = parseInt(review.rating, 10);
+            if (rating >= 1 && rating <= 5) acc[rating - 1]++;
+            return acc;
+        }, [0, 0, 0, 0, 0]);
+        reviewsChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'],
+                datasets: [{
+                    label: 'Rating Distribution', data: ratings,
+                    backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e'],
+                    borderColor: '#fff', borderWidth: 4, hoverOffset: 8
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: true, cutout: '70%' }
+        });
+    };
+    const renderGigsChart = () => {
+        const ctx = document.getElementById('gigs-chart').getContext('2d');
+        if (gigsChart) { gigsChart.destroy(); }
+        const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const dayCounts = Array(7).fill(0);
+        allGigs.forEach(gig => {
+            const date = new Date(gig.date);
+            if (!isNaN(date.getTime())) dayCounts[date.getUTCDay()]++;
+        });
+        gigsChart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: daysOfWeek, datasets: [{ label: '# of Gigs', data: dayCounts, backgroundColor: '#38bdf8', borderRadius: 4 }] },
+            options: { 
+                responsive: true, maintainAspectRatio: false,
+                scales: { 
+                    y: { beginAtZero: true, ticks: { stepSize: 1, padding: 10 }, grid: { drawBorder: false, color: '#e2e8f0' } },
+                    x: { grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    };
+    const renderVenuesChart = () => {
+        const ctx = document.getElementById('venues-chart').getContext('2d');
+        if (venuesChart) { venuesChart.destroy(); }
+        const venueCounts = allGigs.reduce((acc, gig) => {
+            if (gig.venueName && gig.venueName.trim() !== "") acc[gig.venueName.trim()] = (acc[gig.venueName.trim()] || 0) + 1;
+            return acc;
+        }, {});
+        const sortedVenues = Object.entries(venueCounts).sort(([, a], [, b]) => b - a).slice(0, 5);
+        venuesChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sortedVenues.map(v => v[0]),
+                datasets: [{ label: 'Gig Count', data: sortedVenues.map(v => v[1]), backgroundColor: '#a855f7', borderRadius: 4, }]
+            },
+            options: { 
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                scales: { 
+                    x: { beginAtZero: true, ticks: { stepSize: 1, padding: 10 }, grid: { drawBorder: false, color: '#e2e8f0' } },
+                    y: { grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    };
+    const renderGalleryChart = () => {
+        const ctx = document.getElementById('gallery-chart').getContext('2d');
+        if (galleryChart) { galleryChart.destroy(); }
+        const counts = allGalleryItems.reduce((acc, item) => {
+            if (item.website && item.website.trim() !== '') acc.withWebsite++; else acc.withoutWebsite++;
+            return acc;
+        }, { withWebsite: 0, withoutWebsite: 0 });
+        galleryChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['With Website', 'No Website'],
+                datasets: [{ data: [counts.withWebsite, counts.withoutWebsite], backgroundColor: ['#14b8a6', '#f1f5f9'], borderColor: '#fff', borderWidth: 4, hoverOffset: 8 }]
+            },
+            options: { responsive: true, maintainAspectRatio: true }
+        });
+    };
 
+    // --- Data Population & Display ---
+    const updateDashboard = () => {
+        const pendingReviewsCount = allReviews.filter(r => !r.isApproved).length;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const upcomingGigsCount = allGigs.filter(g => new Date(normalizeDate(g.date)) >= today).length;
+        document.getElementById('dashboard-stat-upcoming').textContent = upcomingGigsCount;
+        document.getElementById('dashboard-stat-pending').textContent = pendingReviewsCount;
+        document.getElementById('dashboard-stat-total-gigs').textContent = allGigs.length;
+        document.getElementById('dashboard-stat-total-reviews').textContent = allReviews.length;
+        const upcomingGigsContainer = document.getElementById('dashboard-upcoming-gigs');
+        upcomingGigsContainer.innerHTML = '';
+        const upcomingGigs = allGigs.filter(g => new Date(normalizeDate(g.date)) >= today).sort((a, b) => new Date(normalizeDate(a.date)) - new Date(normalizeDate(b.date))).slice(0, 5);
+        if (upcomingGigs.length > 0) { upcomingGigs.forEach(gig => { const gigEl = document.createElement('div'); gigEl.className = 'flex items-center justify-between p-3 rounded-lg hover:bg-slate-50'; gigEl.innerHTML = `<div><p class="font-semibold text-slate-800">${gig.name}</p><p class="text-sm text-slate-500">${gig.venueName||'N/A'}</p></div><div class="text-right"><p class="font-medium text-slate-700">${gig.date}</p><p class="text-sm text-slate-500">${formatTimeDisplay(gig.time)}</p></div>`; upcomingGigsContainer.appendChild(gigEl); }); } else { upcomingGigsContainer.innerHTML = '<p class="text-slate-500 text-center py-8">No upcoming gigs found.</p>'; }
+        const pendingReviewsContainer = document.getElementById('dashboard-pending-reviews');
+        pendingReviewsContainer.innerHTML = '';
+        const pendingReviews = allReviews.filter(r => !r.isApproved).slice(0, 5);
+        if (pendingReviews.length > 0) { pendingReviews.forEach(review => { const reviewEl = document.createElement('div'); reviewEl.className = 'p-3 rounded-lg hover:bg-slate-50'; reviewEl.innerHTML = `<div class="flex items-center justify-between"><div><p class="font-semibold text-slate-800">${review.name}</p><p class="text-sm text-slate-500">${review.gigName}</p></div><div class="flex">${Array.from({ length: 5 }, (v, i) => `<i class="fa-solid fa-star ${i < review.rating ? 'text-amber-400' : 'text-slate-300'}"></i>`).join('')}</div></div>`; pendingReviewsContainer.appendChild(reviewEl); }); } else { pendingReviewsContainer.innerHTML = '<p class="text-slate-500 text-center py-8">No pending reviews.</p>'; }
+    };
+    const populateReviewsStats=()=>{const e=allReviews.filter(e=>e.isApproved).length;document.getElementById("stat-total-reviews").textContent=allReviews.length,document.getElementById("stat-approved-reviews").textContent=e,document.getElementById("stat-pending-reviews").textContent=allReviews.length-e};
+    const populateGigsStats=()=>{const e=new Date;e.setHours(0,0,0,0);let t=0,o=0;allGigs.forEach(s=>{const n=new Date(normalizeDate(s.date));n>=e?t++:o++}),document.getElementById("stat-total-gigs").textContent=allGigs.length,document.getElementById("stat-upcoming-gigs").textContent=t,document.getElementById("stat-past-gigs").textContent=o};
+    const populateGalleryStats = () => { document.getElementById("stat-total-gallery-items").textContent = allGalleryItems.length; };
+    const populateVenuesStats = () => { document.getElementById("stat-total-venues").textContent = allVenues.length; };
+    const populateNewsletterStats = () => { document.getElementById("stat-total-newsletter").textContent = allNewsletterSubs.length; };
+    const populateReviewsTable=()=>{reviewsTableBody.innerHTML="",allReviews.length?(noReviewsMessage.style.display="none",allReviews.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).forEach((e,t)=>{const o=document.createElement("tr");o.className="border-b",o.dataset.id=e.row;const s=e.isApproved?"bg-green-100 text-green-800":"bg-yellow-100 text-yellow-800",n=e.isApproved?"Approved":"Pending",a=e.isApproved?`<button class="unapprove-btn text-white bg-slate-500 hover:bg-slate-600 text-xs px-3 py-1.5 rounded-lg" title="Un-approve"><i class="fas fa-times"></i></button>`:`<button class="approve-btn text-white bg-green-500 hover:bg-green-600 text-xs px-3 py-1.5 rounded-lg" title="Approve"><i class="fas fa-check"></i></button>`;o.innerHTML=`<td class="px-2 md:px-6 py-4 font-medium text-slate-500">${t+1}</td><td class="px-2 md:px-6 py-4"><div class="font-medium">${e.name}</div><div class="text-slate-500">${e.hometown||"N/A"}</div></td><td class="px-2 md:px-6 py-4"><div class="font-medium">${e.gigName}</div><div class="text-slate-500">${e.gigVenue}</div></td><td class="px-2 md:px-6 py-4"><div class="flex">${Array.from({length:5},(t,o)=>`<i class="fa-solid fa-star ${o<e.rating?"text-amber-400":"text-slate-300"}"></i>`).join("")}</div></td><td class="px-2 md:px-6 py-4 max-w-xs truncate" title="${e.reviewText}">${e.reviewText}</td><td class="px-2 md:px-6 py-4 text-center"><span class="status-badge text-xs px-2.5 py-0.5 rounded-full ${s}">${n}</span></td><td class="px-2 md:px-6 py-4 text-center"><div class="flex items-center justify-center gap-2">${a}<button class="delete-btn text-white bg-red-500 hover:bg-red-600 text-xs px-3 py-1.5 rounded-lg" title="Delete"><i class="fas fa-trash"></i></button></div></td>`,reviewsTableBody.appendChild(o)})):(noReviewsMessage.style.display="block",noReviewsMessage.querySelector("p").textContent="No reviews found.")};
+    const populateGigsTable=()=>{gigsTableBody.innerHTML="",allGigs.length?(noGigsMessage.style.display="none",allGigs.forEach((e,t)=>{const o=document.createElement("tr");o.className="border-b",o.dataset.rowId=e.row,o.innerHTML=`<td class="px-2 md:px-6 py-4 font-medium text-slate-500">${t+1}</td><td class="px-2 md:px-6 py-4"><div>${e.date||""}</div><div class="text-sm text-slate-500">${formatTimeDisplay(e.time)}</div></td><td class="px-2 md:px-6 py-4 font-medium">${e.name||""}</td><td class="px-2 md:px-6 py-4">${e.venueName||""}</td><td class="px-2 md:px-6 py-4">${e.address||""}</td><td class="px-2 md:px-6 py-4 text-center"><div class="flex items-center justify-center gap-2"><button class="edit-gig-btn text-white bg-blue-500 hover:bg-blue-600 text-xs px-3 py-1.5 rounded-lg" title="Edit"><i class="fas fa-pencil-alt"></i></button><button class="delete-gig-btn text-white bg-red-500 hover:bg-red-600 text-xs px-3 py-1.5 rounded-lg" title="Delete"><i class="fas fa-trash"></i></button></div></td>`,gigsTableBody.appendChild(o)})):(noGigsMessage.style.display="block",noGigsMessage.querySelector("p").textContent="No gigs found.")};
+    const populateGalleryTable = () => {galleryTableBody.innerHTML = ""; if (allGalleryItems.length) { noGalleryMessage.style.display = "none"; allGalleryItems.forEach((item, index) => { const row = document.createElement("tr"); row.className = "border-b"; row.dataset.rowId = item.row; const websiteCell = item.website ? `<a href="${item.website}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:text-indigo-800 hover:underline break-all">${item.website}</a>` : `<span class="text-slate-400">N/A</span>`; row.innerHTML = `<td class="px-2 md:px-6 py-4 font-medium text-slate-500">${index + 1}</td><td class="px-2 md:px-6 py-4"><img src="${item.imageUrl}" class="w-32 h-20 object-cover rounded-md bg-slate-200" onerror="this.onerror=null; this.src='https://via.placeholder.com/128x80.png?text=Error';"></td><td class="px-2 md:px-6 py-4 max-w-xs"><p class="whitespace-pre-wrap">${item.text || ''}</p></td><td class="px-2 md:px-6 py-4 max-w-xs">${websiteCell}</td><td class="px-2 md:px-6 py-4 text-center"><div class="flex items-center justify-center gap-2"><button class="edit-gallery-btn text-white bg-blue-500 hover:bg-blue-600 text-xs px-3 py-1.5 rounded-lg" title="Edit"><i class="fas fa-pencil-alt"></i></button><button class="delete-gallery-btn text-white bg-red-500 hover:bg-red-600 text-xs px-3 py-1.5 rounded-lg" title="Delete"><i class="fas fa-trash"></i></button></div></td>`; galleryTableBody.appendChild(row); }); } else { noGalleryMessage.style.display = "block"; noGalleryMessage.querySelector("p").textContent = "No gallery items found."; }};
+    const populateVenuesTable = () => {venuesTableBody.innerHTML = ""; if (allVenues.length) { noVenuesMessage.style.display = "none"; allVenues.forEach((venue, index) => { const row = document.createElement("tr"); row.className = "border-b"; row.dataset.rowId = venue.row; const websiteCell = venue.website ? `<a href="${venue.website}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:text-indigo-800 hover:underline break-all">${venue.website}</a>` : `<span class="text-slate-400">N/A</span>`; row.innerHTML = `<td class="px-2 md:px-6 py-4 font-medium text-slate-500">${index + 1}</td><td class="px-2 md:px-6 py-4 font-medium">${venue.name || ''}</td><td class="px-2 md:px-6 py-4">${venue.address || ''}</td><td class="px-2 md:px-6 py-4 max-w-xs">${websiteCell}</td><td class="px-2 md:px-6 py-4">${venue.phone || ''}</td><td class="px-2 md:px-6 py-4 text-center"><div class="flex items-center justify-center gap-2"><button class="edit-venue-btn text-white bg-blue-500 hover:bg-blue-600 text-xs px-3 py-1.5 rounded-lg" title="Edit"><i class="fas fa-pencil-alt"></i></button><button class="delete-venue-btn text-white bg-red-500 hover:bg-red-600 text-xs px-3 py-1.5 rounded-lg" title="Delete"><i class="fas fa-trash"></i></button></div></td>`; venuesTableBody.appendChild(row); }); } else { noVenuesMessage.style.display = "block"; noVenuesMessage.querySelector("p").textContent = "No venues found."; }};
+    const populateNewsletterTable = () => { newsletterTableBody.innerHTML = ""; if (allNewsletterSubs.length) { noNewsletterMessage.style.display = "none"; allNewsletterSubs.forEach((sub, index) => { const row = document.createElement("tr"); row.className = "border-b"; row.dataset.rowId = sub.row; row.innerHTML = `<td class="px-2 md:px-6 py-4 font-medium text-slate-500">${index + 1}</td><td class="px-2 md:px-6 py-4 font-medium">${sub.email || ''}</td><td class="px-2 md:px-6 py-4">${sub.timestamp || ''}</td><td class="px-2 md:px-6 py-4 text-center"><div class="flex items-center justify-center gap-2"><button class="edit-newsletter-btn text-white bg-blue-500 hover:bg-blue-600 text-xs px-3 py-1.5 rounded-lg" title="Edit"><i class="fas fa-pencil-alt"></i></button><button class="delete-newsletter-btn text-white bg-red-500 hover:bg-red-600 text-xs px-3 py-1.5 rounded-lg" title="Delete"><i class="fas fa-trash"></i></button></div></td>`; newsletterTableBody.appendChild(row); }); } else { noNewsletterMessage.style.display = "block"; noNewsletterMessage.querySelector("p").textContent = "No newsletter subscribers found."; }};
+
+    // --- Data Loading ---
+    const loadAppData = async () => {
+        showLoading(true);
+        try {
+            const fetchPromises = [
+                new Promise((resolve, reject) => Papa.parse(REVIEWS_CSV_URL, { download: true, header: true, skipEmptyLines: true, transformHeader: h => (h.trim().charAt(0).toLowerCase() + h.slice(1)).replace(/\s+/g, ''), complete: r => { allReviews = r.data.map((i,x)=>({...i, row:x+2, isApproved:String(i.approval||'false').trim().toLowerCase()==='true'})); resolve(); }, error: e => reject(e) })),
+                new Promise((resolve, reject) => Papa.parse(GIG_LIST_CSV_URL, { download: true, header: true, skipEmptyLines: true, transformHeader: h => h.trim().toLowerCase(), complete: r => { allGigs = r.data.map((g,i)=>({name:g.name||"",bandWebsite:g["band website"]||"",bandEmail:g["band email"]||"",venueName:g["venue name"]||"",address:g.address||"",venueWebsite:g["venue website"]||"",venuePhone:g["venue phone number"]||"",venueEmail:g["venue email"]||"",date:g.date||"",time:g.time||"",googleMapsLink:g["google maps link"]||"",latitude:g.latitude||"",longitude:g.longitude||"",row:i+2})); resolve(); }, error: e => reject(e) })),
+                new Promise((resolve, reject) => Papa.parse(GALLERY_CSV_URL, { download: true, header: true, skipEmptyLines: true, transformHeader: h => h.trim().toLowerCase().replace(/\s+/g, ''), complete: r => { allGalleryItems = r.data.map((i,x)=>({imageUrl:i.imageurl||"",text:i.text||"",website:i.website||"",row:x+2})); resolve(); }, error: e => reject(e) })),
+                new Promise((resolve, reject) => Papa.parse(VENUES_CSV_URL, { download: true, header: true, skipEmptyLines: true, transformHeader: h => h.trim().toLowerCase().replace(/\s+/g, ''), complete: r => { allVenues = r.data.map((v,i)=>({name:v.name||v.venuename||"",address:v.address||v.venueaddress||"",website:v.website||v.venuewebsite||"",phone:v.phone||v.venuephonenumber||"",latitude:v.latitude||"",longitude:v.longitude||"",row:i+2})); resolve(); }, error: e => reject(e) })),
+                new Promise((resolve, reject) => {
+                    fetch(`${APPS_SCRIPT_URL}?action=getNewsletterSubs`)
+                        .then(res => {
+                            if (!res.ok) throw new Error(`Server error fetching newsletter data.`);
+                            return res.json();
+                        })
+                        .then(data => {
+                            if (data.status && data.status === 'error') {
+                                throw new Error(data.message);
+                            }
+                            allNewsletterSubs = data;
+                            resolve();
+                        })
+                        .catch(e => reject(e));
+                })
+            ];
+            await Promise.all(fetchPromises);
+            refreshAllUI();
+        } catch (e) {
+            console.error("Error loading data:", e);
+            showCustomAlert(`Failed to load data. Check console for details.`, "error");
+        } finally {
+            showLoading(false);
+        }
+    };
+    
+    // --- Action Handling & Form Submission ---
+    const handleAction = async (action, rowId, button, type) => {
+        const icon = button.querySelector("i"), originalIconClass = icon.className;
+        icon.className = "fas fa-spinner btn-spinner", button.disabled = true;
+        try {
+            const formData = new FormData;
+            formData.append("action", action), formData.append("rowId", rowId);
+            const response = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+            if (!response.ok) throw new Error("Server error");
+            const result = await response.json();
+            if ("success" !== result.status) throw new Error(result.message);
+            
+            if (action.startsWith('delete')) {
+                showCustomAlert(`${type} permanently deleted!`, "success");
+                if (type === "Review") allReviews = allReviews.filter(i => i.row != rowId);
+                else if (type === "Gig") allGigs = allGigs.filter(i => i.row != rowId);
+                else if (type === "Venue") allVenues = allVenues.filter(i => i.row != rowId);
+                else if (type === "Gallery Item") allGalleryItems = allGalleryItems.filter(i => i.row != rowId);
+                else if (type === "NewsletterSub") allNewsletterSubs = allNewsletterSubs.filter(i => i.row != rowId);
+                refreshAllUI();
+            } else { // Approve/Unapprove
+                const reviewToUpdate = allReviews.find(i => i.row == rowId);
+                if (reviewToUpdate) { 
+                    reviewToUpdate.isApproved = action === "approveReview"; 
+                    showCustomAlert(reviewToUpdate.isApproved ? "Review approved!" : "Review un-approved.", "success"); 
+                    populateReviewsTable(); 
+                    populateReviewsStats(); 
+                    updateDashboard();
+                    renderDashboardChart();
+                    renderReviewsChart();
+                } else { throw new Error("Review not found for update."); }
+            }
+        } catch (e) { showCustomAlert(`Error: ${e.message}`, "error"); } finally { icon.className = originalIconClass; button.disabled = false; }
+    };
+    const submitGigForm = async e => {
+        e.preventDefault();
+        const form = e.target, isAddMode = form.id === 'add-gig-form', submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true, submitBtn.textContent = isAddMode ? "Adding..." : "Saving...";
+        const formData = new FormData(form);
+        const hour = form.elements.hour.value || '12';
+        const minutes = String(form.elements.minutes.value || '00').padStart(2, '0');
+        const ampm = form.elements.ampm.value;
+        const time = `${hour}:${minutes} ${ampm}`;
+        formData.append("time", time);
+        formData.append("action", isAddMode ? "addGig" : "updateGig");
+        formData.delete('hour'); formData.delete('minutes'); formData.delete('ampm');
+        
+        try {
+            const response = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+            if (!response.ok) throw new Error("Server communication error.");
+            const result = await response.json();
+            if (result.status !== 'success') throw new Error(result.message);
+
+            if (isAddMode) {
+                showCustomAlert("Gig added successfully!", "success");
+                allGigs.push(result.newGig); 
+            } else {
+                showCustomAlert("Gig updated successfully!", "success");
+                const rowId = formData.get('rowId');
+                const gigIndex = allGigs.findIndex(g => g.row == rowId);
+                if (gigIndex > -1) {
+                    const updatedData = Object.fromEntries(formData.entries());
+                    allGigs[gigIndex] = { ...allGigs[gigIndex], ...updatedData };
+                }
+            }
+            (isAddMode ? addGigModal : editGigModal).classList.add('hidden');
+            if (isAddMode) form.reset();
+            refreshAllUI();
+        } catch (error) {
+            showCustomAlert(`Error: ${error.message}`, "error");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = isAddMode ? "Add Gig" : "Save Changes";
+        }
+    };
+    const submitVenueForm = async e => {
+        e.preventDefault();
+        const form = e.target, isAddMode = form.id === 'add-venue-form', submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true, submitBtn.textContent = isAddMode ? "Adding..." : "Saving...";
+        const formData = new FormData(form);
+        formData.append("action", isAddMode ? "addVenue" : "updateVenue");
+
+        try {
+            const response = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+            if (!response.ok) throw new Error("Server communication error.");
+            const result = await response.json();
+            if (result.status !== 'success') throw new Error(result.message);
+
+            if (isAddMode) {
+                showCustomAlert("Venue added successfully!", "success");
+                allVenues.push(result.newVenue);
+            } else {
+                showCustomAlert("Venue updated successfully!", "success");
+                const rowId = formData.get('rowId');
+                const venueIndex = allVenues.findIndex(v => v.row == rowId);
+                if (venueIndex > -1) {
+                    allVenues[venueIndex] = { 
+                        ...allVenues[venueIndex], 
+                        name: formData.get('venueName'),
+                        address: formData.get('venueAddress'),
+                        website: formData.get('venueWebsite'),
+                        phone: formData.get('venuePhoneNumber'),
+                        latitude: formData.get('latitude'),
+                        longitude: formData.get('longitude'),
+                    };
+                }
+            }
+            (isAddMode ? addVenueModal : editVenueModal).classList.add('hidden');
+            if (isAddMode) form.reset();
+            refreshAllUI();
+        } catch (error) {
+            showCustomAlert(`Error: ${error.message}`, "error");
+        } finally {
+            submitBtn.disabled = false, submitBtn.textContent = isAddMode ? "Add Venue" : "Save Changes";
+        }
+    };
+    const submitGalleryForm = async e => {
+        e.preventDefault();
+        const form = e.target, isAddMode = form.id === 'add-gallery-form', submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true, submitBtn.textContent = isAddMode ? "Adding..." : "Saving...";
+        const formData = new FormData(form);
+        formData.append("action", isAddMode ? "addGalleryItem" : "updateGalleryItem");
+        try {
+            const response = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+            if (!response.ok) throw new Error("Server communication error.");
+            const result = await response.json();
+            if (result.status !== 'success') throw new Error(result.message);
+            
+            if (isAddMode) {
+                showCustomAlert("Image added successfully!", "success");
+                allGalleryItems.push(result.newGalleryItem);
+            } else {
+                showCustomAlert("Image updated successfully!", "success");
+                const rowId = formData.get('rowId');
+                const itemIndex = allGalleryItems.findIndex(i => i.row == rowId);
+                if (itemIndex > -1) {
+                    const updatedData = Object.fromEntries(formData.entries());
+                    allGalleryItems[itemIndex] = { ...allGalleryItems[itemIndex], ...updatedData };
+                }
+            }
+            (isAddMode ? addGalleryModal : editGalleryModal).classList.add('hidden');
+            if (isAddMode) form.reset();
+            refreshAllUI();
+        } catch (error) { showCustomAlert(`Error: ${error.message}`, "error"); } 
+        finally { submitBtn.disabled = false, submitBtn.textContent = isAddMode ? "Add to Gallery" : "Save Changes"; if (isAddMode) { form.reset(); document.getElementById('add-preview-img').src = 'https://via.placeholder.com/400x200.png?text=Image+Preview'; document.getElementById('add-preview-text').textContent = 'Your text will appear here.'; } }
+    };
+    const submitNewsletterForm = async e => {
+        e.preventDefault();
+        const form = e.target, isAddMode = form.id === 'add-newsletter-form', submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true, submitBtn.textContent = isAddMode ? "Adding..." : "Saving...";
+        const formData = new FormData(form);
+        formData.append("action", isAddMode ? "addNewsletterSub" : "updateNewsletterSub");
+        try {
+            const response = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+            if (!response.ok) throw new Error("Server communication error.");
+            const result = await response.json();
+            if (result.status !== 'success') throw new Error(result.message);
+            
+            if (isAddMode) {
+                showCustomAlert("Subscriber added successfully!", "success");
+                allNewsletterSubs.push(result.newSubscriber);
+            } else {
+                showCustomAlert("Subscriber updated successfully!", "success");
+                const rowId = formData.get('rowId');
+                const itemIndex = allNewsletterSubs.findIndex(i => i.row == rowId);
+                if (itemIndex > -1) {
+                    allNewsletterSubs[itemIndex] = { ...allNewsletterSubs[itemIndex], ...Object.fromEntries(formData.entries()) };
+                }
+            }
+            (isAddMode ? addNewsletterModal : editNewsletterModal).classList.add('hidden');
+            if (isAddMode) form.reset();
+            refreshAllUI();
+        } catch (error) { 
+            showCustomAlert(`Error: ${error.message}`, "error"); 
+        } finally { 
+            submitBtn.disabled = false;
+            submitBtn.textContent = isAddMode ? "Add Subscriber" : "Save Changes";
+        }
+    };
+
+    // --- Geolocation Logic ---
+    const runGeolocation = async (type) => {
+        const itemsToGeocode = type === 'gigs' 
+            ? allGigs.filter(g => g.address && (!g.latitude || !g.longitude))
+            : allVenues.filter(v => v.address && (!v.latitude || !v.longitude));
+        const itemType = type === 'gigs' ? 'gig' : 'venue';
+        const button = type === 'gigs' ? runGeolocationBtn : runVenueGeolocationBtn;
+        const action = type === 'gigs' ? 'geocodeGigsWithGeoapify' : 'geocodeVenuesWithGeoapify';
+        if (itemsToGeocode.length === 0) {
+            showCustomAlert(`No ${itemType}s require geocoding.`, "info");
+            return;
+        }
+        try {
+            await showConfirm(`Run ${itemType.charAt(0).toUpperCase() + itemType.slice(1)} Geolocation?`, `This will find coordinates for ${itemsToGeocode.length} ${itemType}(s). Continue?`);
+            button.disabled = true;
+            button.querySelector("i").className = "fas fa-spinner btn-spinner";
+            const rowIds = itemsToGeocode.map(item => item.row);
+            const formData = new FormData();
+            formData.append("action", action);
+            formData.append("rowIds", JSON.stringify(rowIds));
+            const response = await fetch(GEOAPIFY_SCRIPT_URL, { method: "POST", body: formData });
+            if (!response.ok) throw new Error("Server communication error.");
+            const result = await response.json();
+            if (result.status !== 'success') throw new Error(result.message);
+            showCustomAlert(`${result.geocodedCount || 0} ${itemType}(s) were geocoded. Reloading data...`, "success");
+            await loadAppData();
+        } catch (err) {
+            if (err) { /* Catches rejection from showConfirm */ }
+        } finally {
+            button.disabled = false;
+            button.querySelector("i").className = 'fas fa-map-marked-alt';
+        }
+    };
+
+    // --- Event Listeners ---
+    passwordForm.addEventListener("submit",async e=>{e.preventDefault(),passwordError.textContent="",loginButton.disabled=!0,loginButton.textContent="Verifying...";try{const t=new FormData;t.append("action","validatePassword"),t.append("password",passwordInput.value);const o=await fetch(APPS_SCRIPT_URL,{method:"POST",body:t});if(!o.ok)throw new Error("Network error");const s=await o.json();if("success"===s.status)passwordOverlay.style.transition="opacity 0.5s ease",passwordOverlay.style.opacity="0",setTimeout(()=>{passwordOverlay.style.display="none",loadAppData()},500);else throw new Error(s.message||"Incorrect password.")}catch(e){passwordError.textContent=e.message,loginButton.disabled=!1,loginButton.textContent="Login"}});
+    reviewsTableBody.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t)return;const o=t.closest("tr").dataset.id;if(t.classList.contains("approve-btn"))handleAction("approveReview",o,t,"Review");else if(t.classList.contains("unapprove-btn"))handleAction("unapproveReview",o,t,"Review");else if(t.classList.contains("delete-btn"))try{const e=allReviews.find(i=>i.row==o).name;await showConfirm("Delete Review?",`Are you sure you want to permanently delete the review by ${e}?`),handleAction("deleteReview",o,t,"Review")}catch(e){/* User cancelled */}});
+    gigsTableBody.addEventListener("click", async e => {const t=e.target.closest("button");if(!t)return;const a=t.closest("tr").dataset.rowId,d=allGigs.find(g=>g.row==a);if(d){if(t.classList.contains("edit-gig-btn")){const g=editGigForm,o=parseTime(d.time);g.elements.rowId.value=d.row,g.elements.date.value=normalizeDate(d.date),g.elements.hour.value=o.hour,g.elements.minutes.value=o.minutes,g.elements.ampm.value=o.ampm,g.elements.name.value=d.name||"",g.elements.address.value=d.address||"",g.elements.googleMapsLink.value=d.googleMapsLink||"",g.elements.band_website.value=d.bandWebsite||"",g.elements.band_email.value=d.bandEmail||"",g.elements.venue_name.value=d.venueName||"",g.elements.venue_website.value=d.venueWebsite||"",g.elements.venue_phone_number.value=d.venuePhone||"",g.elements.venue_email.value=d.venueEmail||"",g.elements.latitude.value=d.latitude||"",g.elements.longitude.value=d.longitude||"",editGigModal.classList.remove("hidden")}else if(t.classList.contains("delete-gig-btn"))try{await showConfirm("Delete Gig?",`Are you sure you want to permanently delete the gig for ${d.name} on ${d.date}?`),handleAction("deleteGig",a,t,"Gig")}catch(e){}}});
+    venuesTableBody.addEventListener("click", async e => {const t=e.target.closest("button");if(!t)return;const a=t.closest("tr").dataset.rowId,d=allVenues.find(v=>v.row==a);if(d){if(t.classList.contains("edit-venue-btn")){const v=editVenueForm;v.elements.rowId.value=d.row,v.elements.venueName.value=d.name||"",v.elements.venueAddress.value=d.address||"",v.elements.venueWebsite.value=d.website||"",v.elements.venuePhoneNumber.value=d.phone||"",v.elements.latitude.value=d.latitude||"",v.elements.longitude.value=d.longitude||"",editVenueModal.classList.remove("hidden")}else if(t.classList.contains("delete-venue-btn"))try{await showConfirm("Delete Venue?",`Are you sure you want to permanently delete the venue "${d.name}"?`),handleAction("deleteVenue",a,t,"Venue")}catch(e){}}});
+    galleryTableBody.addEventListener("click", async e => {const t=e.target.closest("button");if(!t)return;const a=t.closest("tr").dataset.rowId,d=allGalleryItems.find(i=>i.row==a);if(d){if(t.classList.contains("edit-gallery-btn")){const i=editGalleryForm;i.elements.rowId.value=d.row,i.elements.imageUrl.value=d.imageUrl||"",i.elements.text.value=d.text||"",i.elements.website.value=d.website||"",document.getElementById("edit-preview-img").src=d.imageUrl||"https://via.placeholder.com/400x200.png?text=Image+Preview",document.getElementById("edit-preview-text").textContent=d.text||"",editGalleryModal.classList.remove("hidden")}else if(t.classList.contains("delete-gallery-btn"))try{await showConfirm("Delete Gallery Item?","Are you sure you want to permanently delete this gallery item?"),handleAction("deleteGalleryItem",a,t,"Gallery Item")}catch(e){}}});
+    newsletterTableBody.addEventListener("click", async e => { const t = e.target.closest("button"); if (!t) return; const a = t.closest("tr").dataset.rowId; const sub = allNewsletterSubs.find(s => s.row == a); if (!sub) return; if (t.classList.contains("edit-newsletter-btn")) { const form = editNewsletterForm; form.elements.rowId.value = sub.row; form.elements.email.value = sub.email || ""; form.elements.timestamp.value = sub.timestamp || ""; editNewsletterModal.classList.remove("hidden"); } else if (t.classList.contains("delete-newsletter-btn")) { try { await showConfirm("Delete Subscriber?", `Are you sure you want to permanently delete the subscriber "${sub.email}"?`); handleAction("deleteNewsletterSub", a, t, "NewsletterSub"); } catch (e) { /* User cancelled */ } } });
+    addGigBtn.addEventListener('click', () => { addGigForm.reset(); addGigModal.classList.remove('hidden'); });
+    addVenueBtn.addEventListener('click', () => { addVenueForm.reset(); addVenueModal.classList.remove('hidden'); });
+    addGalleryBtn.addEventListener('click', () => { addGalleryForm.reset(); document.getElementById('add-preview-img').src='https://via.placeholder.com/400x200.png?text=Image+Preview'; document.getElementById('add-preview-text').textContent='Your text will appear here.'; addGalleryModal.classList.remove('hidden'); });
+    addNewsletterBtn.addEventListener('click', () => { addNewsletterForm.reset(); addNewsletterModal.classList.remove('hidden'); });
+    runGeolocationBtn.addEventListener('click', () => runGeolocation('gigs'));
+    runVenueGeolocationBtn.addEventListener('click', () => runGeolocation('venues'));
+    addGigForm.addEventListener("submit",submitGigForm);
+    editGigForm.addEventListener("submit",submitGigForm);
+    addVenueForm.addEventListener('submit', submitVenueForm);
+    editVenueForm.addEventListener('submit', submitVenueForm);
+    addGalleryForm.addEventListener("submit", submitGalleryForm);
+    editGalleryForm.addEventListener("submit", submitGalleryForm);
+    addNewsletterForm.addEventListener("submit", submitNewsletterForm);
+    editNewsletterForm.addEventListener("submit", submitNewsletterForm);
+    const setupPreview = (formId, imgId, textId, defaultText) => { const form = document.getElementById(formId), img = document.getElementById(imgId), text = document.getElementById(textId), urlInput = form.elements.imageUrl, textInput = form.elements.text; urlInput.addEventListener('input', () => { img.src = urlInput.value || 'https://via.placeholder.com/400x200.png?text=Image+Preview'; }); textInput.addEventListener('input', () => { text.textContent = textInput.value || defaultText; }); };
+    setupPreview('add-gallery-form', 'add-preview-img', 'add-preview-text', 'Your text will appear here.');
+    setupPreview('edit-gallery-form', 'edit-preview-img', 'edit-preview-text', '');
+    const toggleSidebar = () => { sidebar.classList.toggle('-translate-x-full'); sidebarOverlay.classList.toggle('hidden'); };
+    burgerBtn.addEventListener('click', toggleSidebar);
+    sidebarOverlay.addEventListener('click', toggleSidebar);
+    document.querySelectorAll('.sidebar-link').forEach(link => link.addEventListener('click', () => { if (window.innerWidth < 768) { toggleSidebar(); }}));
+    document.querySelectorAll('.modal-close-btn, .modal-cancel-btn').forEach(b=>b.addEventListener('click',()=>b.closest('.fixed').classList.add('hidden')));
+    Object.keys(navLinks).forEach(t=>{navLinks[t]&&navLinks[t].addEventListener("click",e=>{e.preventDefault(),showTab(t)})});
+    document.getElementById('dashboard-view-gigs-btn').addEventListener('click', () => showTab('gigs'));
+    document.getElementById('dashboard-view-reviews-btn').addEventListener('click', () => showTab('reviews'));
+    showTab('dashboard');
+});
+</script>
 </body>
 </html>
