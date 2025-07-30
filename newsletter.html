@@ -19,6 +19,14 @@
             -moz-osx-font-smoothing: grayscale;
             padding-bottom: 120px; /* Increased padding for more space */
         }
+        
+        /* Media query for desktop screens (768px and wider) */
+        @media (min-width: 768px) {
+            body {
+                overflow: hidden; /* Disable scrolling on desktop */
+            }
+        }
+
         @keyframes fadeInDown {
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -178,6 +186,10 @@
 
     </div>
     
+    <footer class="text-center py-4">
+        <p class="text-sm text-slate-500">&copy; 2025 Mybandstonight.com</p>
+    </footer>
+
     <div id="bottom-nav" class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 z-20000">
         <div class="flex items-center w-full px-4 py-3 gap-4">
             <img class="w-12 h-12 rounded-full object-cover pointer-events-none" src="https://i.imghippo.com/files/vPMA5186Y.png" alt="User Profile Picture">
